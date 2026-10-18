@@ -106,7 +106,7 @@
           <label>Pilih Koli Box</label>
           <select id="inBox" class="ios-input"></select>
           
-          <label>Artikel / SKU (Otomatis Cek Master Data)</label>
+          <label>Artikel / SKU (Cek Master Data)</label>
           <input id="inArticle" class="ios-input" placeholder="Ketik SKU atau KLS..." oninput="checkDataMaster(this.value)">
           
           <label>Nama / Deskripsi Barang</label>
@@ -152,10 +152,10 @@
         <div id="boxList" class="box-grid"></div>
       </section>
 
-      <!-- VIEW: SCAN & DETAIL (DENGAN PIN 6-DIGIT) -->
+      <!-- VIEW: SCAN & DETAIL (DENGAN PIN) -->
       <section id="view-scan" class="panel hidden">
         <h2>Scan / Detail Isi Koli</h2>
-        <p style="font-size: 13px; color: var(--subtext); margin-top:-10px;">Akses detail membutuhkan PIN Koli 6-Digit.</p>
+        <p style="font-size: 13px; color: var(--subtext); margin-top:-10px;">Akses detail membutuhkan PIN 6-Digit.</p>
         
         <label>Pilih Box / Scan QR</label>
         <div style="display:flex; gap:10px; margin-bottom: 16px;">
@@ -184,16 +184,14 @@
     <div class="tab-bar">
       <button class="tab active" onclick="nav('input')"><span class="tab-icon">📥</span>Input</button>
       <button class="tab" onclick="nav('outbound')"><span class="tab-icon">📤</span>Outbound</button>
-      <button class="tab" onclick="nav('qr')"><span class="tab-icon">📦</span>Daftar Koli</button>
-      <button class="tab" onclick="nav('scan')"><span class="tab-icon">🔍</span>Scan Detail</button>
+      <button class="tab" onclick="nav('qr')"><span class="tab-icon">📦</span>Daftar</button>
+      <button class="tab" onclick="nav('scan')"><span class="tab-icon">🔍</span>Scan</button>
       <button class="tab" onclick="nav('history')"><span class="tab-icon">🕒</span>Riwayat</button>
     </div>
   </div>
 
 <script>
-// ==========================================
-// KONFIGURASI API (GANTI DENGAN URL DEPLOY GAS ANDA)
-// ==========================================
+// API URL LANGSUNG DARI SISTEM ANDA:
 const API_URL = "https://script.google.com/macros/s/AKfycbxedQlBU_3JuhrOL3lxbAqfcIvGvEdKaRdTPPvWfEHFdA663MkpntRYORdtqK_mcena/exec";
 
 // Global State
@@ -204,7 +202,7 @@ let outboundCart = [];
 // ==========================================
 // INIT & CORE FUNCTIONS
 // ==========================================
-window.onload = () => {
+window.onload = function() {
   const savedUser = localStorage.getItem('koliUser');
   if (savedUser) {
     try {
@@ -213,12 +211,14 @@ window.onload = () => {
         showApp();
         loadData();
       }
-    } catch(e) { localStorage.removeItem('koliUser'); }
+    } catch(e) { 
+      localStorage.removeItem('koliUser'); 
+    }
   }
 };
 
-function showLoading(text = "Memuat...") {
-  document.getElementById('loading-text').innerText = text;
+function showLoading(text) {
+  document.getElementById('loading-text').innerText = text || "Memuat...";
   document.getElementById('loading-overlay').classList.remove('hidden');
 }
 
@@ -237,7 +237,7 @@ async function fetchAPI(action, dataPayload) {
     if (!res.ok) throw new Error("Jaringan bermasalah atau CORS block.");
     return await res.json();
   } catch (error) {
-    throw new Error("Gagal terhubung ke server.");
+    throw new Error("Gagal terhubung ke server. Pastikan API URL aktif.");
   }
 }
 
@@ -261,7 +261,9 @@ async function login() {
     } else { 
       alert(response.message); 
     }
-  } catch(e) { alert(e.message); }
+  } catch(e) { 
+    alert(e.message); 
+  }
   hideLoading();
 }
 
@@ -279,7 +281,7 @@ function showApp() {
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-screen').classList.remove('hidden');
-  document.getElementById('userBadge').innerText = `${currentUser.role.toUpperCase()} • ${currentUser.store}`;
+  document.getElementById('userBadge').innerText = currentUser.role.toUpperCase() + ' • ' + currentUser.store;
 }
 
 // ==========================================
@@ -292,15 +294,21 @@ async function loadData() {
     if(res.status === 'success') {
       APP_DATA = res.data;
       refreshUI();
-    } else { alert("Gagal memuat: " + res.message); }
-  } catch(e) { console.error(e); alert("Error memuat data"); }
+    } else { 
+      alert("Gagal memuat: " + res.message); 
+    }
+  } catch(e) { 
+    alert("Error memuat data"); 
+  }
   hideLoading();
 }
 
 function refreshUI() {
-  // Populate Dropdowns
-  const options = `<option value="">Pilih Koli Box...</option>` + 
-    APP_DATA.boxes.map(b => `<option value="${b.BoxID}">${b.NamaBox} (${b.BoxID})</option>`).join('');
+  let options = '<option value="">Pilih Koli Box...</option>';
+  APP_DATA.boxes.forEach(function(b) {
+    options += '<option value="' + b.BoxID + '">' + b.NamaBox + ' (' + b.BoxID + ')</option>';
+  });
+  
   document.getElementById('inBox').innerHTML = options;
   document.getElementById('outBox').innerHTML = options;
   document.getElementById('detailBox').innerHTML = options;
@@ -314,10 +322,9 @@ function refreshUI() {
 // ==========================================
 function checkDataMaster(keyword) {
   if(keyword.length < 3) return;
-  const found = APP_DATA.master.find(m => 
-    String(m.SKU).toLowerCase() === keyword.toLowerCase() || 
-    String(m.ArtikelManufaktur).toLowerCase() === keyword.toLowerCase()
-  );
+  const found = APP_DATA.master.find(function(m) {
+    return String(m.SKU).toLowerCase() === keyword.toLowerCase() || String(m.ArtikelManufaktur).toLowerCase() === keyword.toLowerCase();
+  });
   
   if(found) {
     document.getElementById('inArticle').value = found.SKU;
@@ -333,12 +340,13 @@ async function saveInput() {
   
   if(!boxId || !article) return alert("Box dan Artikel wajib diisi!");
   
-  const isDuplicate = APP_DATA.products.find(p => p.BoxID === boxId && p.Artikel === article);
+  const isDuplicate = APP_DATA.products.find(function(p) {
+    return p.BoxID === boxId && p.Artikel === article;
+  });
   let replaceStatus = 'new';
   
   if(isDuplicate) {
-    // Custom iOS style popup
-    const ask = confirm(`Artikel [${article}] sudah ada di Koli ini.\n\nKlik [OK] untuk MENAMBAH QTY.\nKlik [Cancel] untuk REPLACE (Tiban Qty).`);
+    const ask = confirm("Artikel [" + article + "] sudah ada di Koli ini.\n\nKlik [OK] untuk MENAMBAH QTY.\nKlik [Cancel] untuk REPLACE (Tiban Qty).");
     replaceStatus = ask ? 'add' : 'replace';
   }
 
@@ -347,19 +355,26 @@ async function saveInput() {
     if(file) {
       if(file.size > 5 * 1024 * 1024) throw new Error("Foto maksimal 5MB");
       const reader = new FileReader();
-      reader.onload = async (e) => { await sendInputPayload(boxId, article, replaceStatus, e.target.result); };
+      reader.onload = async function(e) { 
+        await sendInputPayload(boxId, article, replaceStatus, e.target.result); 
+      };
       reader.readAsDataURL(file);
     } else {
       await sendInputPayload(boxId, article, replaceStatus, null);
     }
   } catch(e) {
-    alert(e.message); hideLoading();
+    alert(e.message); 
+    hideLoading();
   }
 }
 
 async function sendInputPayload(boxId, article, replaceStatus, photoData) {
   const payload = {
-    user: currentUser, boxId, article, replaceStatus, photoData,
+    user: currentUser, 
+    boxId: boxId, 
+    article: article, 
+    replaceStatus: replaceStatus, 
+    photoData: photoData,
     name: document.getElementById('inName').value,
     qty: document.getElementById('inQty').value,
     dept: document.getElementById('inDept').value
@@ -372,8 +387,11 @@ async function sendInputPayload(boxId, article, replaceStatus, photoData) {
     document.getElementById('inName').value = "";
     document.getElementById('inQty').value = "";
     document.getElementById('inPhoto').value = "";
-    loadData(); // Refresh all
-  } else { alert("Error: " + res.message); hideLoading(); }
+    loadData(); 
+  } else { 
+    alert("Error: " + res.message); 
+    hideLoading(); 
+  }
 }
 
 // ==========================================
@@ -381,32 +399,46 @@ async function sendInputPayload(boxId, article, replaceStatus, photoData) {
 // ==========================================
 function loadOutboundItems() {
   const boxId = document.getElementById('outBox').value;
-  const items = APP_DATA.products.filter(p => p.BoxID === boxId && Number(p.Qty) > 0);
-  outboundCart = items.map(i => ({...i, qtyOut: 0}));
+  const items = APP_DATA.products.filter(function(p) {
+    return p.BoxID === boxId && Number(p.Qty) > 0;
+  });
+  
+  outboundCart = items.map(function(i) {
+    return {
+      ProductID: i.ProductID,
+      Artikel: i.Artikel,
+      NamaBarang: i.NamaBarang,
+      Qty: i.Qty,
+      qtyOut: 0
+    };
+  });
   renderOutbound();
 }
 
 function renderOutbound() {
   const list = document.getElementById('outboundList');
-  if(!outboundCart.length) {
-    list.innerHTML = `<div class="empty-state">Koli ini kosong atau belum dipilih.</div>`;
+  if(outboundCart.length === 0) {
+    list.innerHTML = '<div class="empty-state">Koli ini kosong atau belum dipilih.</div>';
     return;
   }
   
-  list.innerHTML = outboundCart.map((item, index) => `
-    <div class="outbound-item">
-      <div>
-        <strong style="font-size:15px; color:var(--primary);">${item.Artikel}</strong><br>
-        <span style="font-size:12px; color:var(--text);">${item.NamaBarang}</span><br>
-        <span class="badge" style="background:#F2F2F7; color:var(--subtext);">Stok Tersedia: ${item.Qty}</span>
-      </div>
-      <div class="qty-control">
-        <button class="qty-btn" onclick="adjQty(${index}, -1)">-</button>
-        <span style="font-weight:600; width: 24px; text-align:center;">${item.qtyOut}</span>
-        <button class="qty-btn" onclick="adjQty(${index}, 1)">+</button>
-      </div>
-    </div>
-  `).join('');
+  let html = '';
+  outboundCart.forEach(function(item, index) {
+    html += '<div class="outbound-item">';
+    html += '  <div>';
+    html += '    <strong style="font-size:15px; color:var(--primary);">' + item.Artikel + '</strong><br>';
+    html += '    <span style="font-size:12px; color:var(--text);">' + item.NamaBarang + '</span><br>';
+    html += '    <span class="badge" style="background:#F2F2F7; color:var(--subtext);">Stok: ' + item.Qty + '</span>';
+    html += '  </div>';
+    html += '  <div class="qty-control">';
+    html += '    <button class="qty-btn" onclick="adjQty(' + index + ', -1)">-</button>';
+    html += '    <span style="font-weight:600; width:24px; text-align:center;">' + item.qtyOut + '</span>';
+    html += '    <button class="qty-btn" onclick="adjQty(' + index + ', 1)">+</button>';
+    html += '  </div>';
+    html += '</div>';
+  });
+  
+  list.innerHTML = html;
 }
 
 function adjQty(index, change) {
@@ -418,21 +450,33 @@ function adjQty(index, change) {
 }
 
 async function processOutbound() {
-  const toProcess = outboundCart.filter(i => i.qtyOut > 0);
-  if(!toProcess.length) return alert("Pilih minimal 1 item untuk dikeluarkan (+)");
+  const toProcess = outboundCart.filter(function(i) { return i.qtyOut > 0; });
+  if(toProcess.length === 0) return alert("Pilih minimal 1 item untuk dikeluarkan (+)");
   
   showLoading("Memproses Outbound...");
-  const payload = { user: currentUser, items: toProcess.map(i => ({productId: i.ProductID, qtyOut: i.qtyOut})) };
+  
+  const payloadItems = toProcess.map(function(i) {
+    return { productId: i.ProductID, qtyOut: i.qtyOut };
+  });
+  
+  const payload = { user: currentUser, items: payloadItems };
   
   try {
     const res = await fetchAPI('outbound', payload);
     if(res.status === 'success') {
       alert(res.message);
       document.getElementById('outBox').value = "";
-      outboundCart = []; renderOutbound();
+      outboundCart = []; 
+      renderOutbound();
       loadData();
-    } else { alert(res.message); hideLoading(); }
-  } catch(e) { alert(e.message); hideLoading(); }
+    } else { 
+      alert(res.message); 
+      hideLoading(); 
+    }
+  } catch(e) { 
+    alert(e.message); 
+    hideLoading(); 
+  }
 }
 
 // ==========================================
@@ -446,35 +490,52 @@ async function createNewBox() {
   try {
     const res = await fetchAPI('createBox', { user: currentUser, name: name });
     if(res.status === 'success') {
-      alert(`Berhasil! PIN Box Anda: ${res.data.pin}`);
+      alert("Berhasil! PIN Box Anda: " + res.data.pin);
       document.getElementById('boxName').value = "";
       loadData();
-    } else { alert(res.message); hideLoading(); }
-  } catch(e) { alert(e.message); hideLoading(); }
+    } else { 
+      alert(res.message); 
+      hideLoading(); 
+    }
+  } catch(e) { 
+    alert(e.message); 
+    hideLoading(); 
+  }
 }
 
 function renderBoxList() {
   const el = document.getElementById('boxList');
-  if(!APP_DATA.boxes.length) { el.innerHTML = `<div class="empty-state">Belum ada Koli Box.</div>`; return; }
+  if(APP_DATA.boxes.length === 0) { 
+    el.innerHTML = '<div class="empty-state">Belum ada Koli Box.</div>'; 
+    return; 
+  }
   
-  el.innerHTML = APP_DATA.boxes.map(b => `
-    <div class="box-card">
-      <img class="qr-thumb" src="${b.QRFileURL || ''}" alt="QR">
-      <div style="flex:1;">
-        <h3 style="margin:0 0 4px 0; font-size:16px;">${b.NamaBox}</h3>
-        <div style="font-size:12px; color:var(--subtext); margin-bottom:8px;">ID: ${b.BoxID}</div>
-        <div style="display:flex; gap:8px;">
-          <button class="ios-btn ios-btn-secondary" style="padding:6px 12px; font-size:12px;" onclick="printQR('${b.QRFileURL}')">Cetak QR</button>
-        </div>
-      </div>
-    </div>
-  `).join('');
+  let html = '';
+  APP_DATA.boxes.forEach(function(b) {
+    const qrUrl = b.QRFileURL || '';
+    html += '<div class="box-card">';
+    html += '  <img class="qr-thumb" src="' + qrUrl + '" alt="QR">';
+    html += '  <div style="flex:1;">';
+    html += '    <h3 style="margin:0 0 4px 0; font-size:16px;">' + b.NamaBox + '</h3>';
+    html += '    <div style="font-size:12px; color:var(--subtext); margin-bottom:8px;">ID: ' + b.BoxID + '</div>';
+    html += '    <div style="display:flex; gap:8px;">';
+    html += '      <button class="ios-btn ios-btn-secondary" style="padding:6px 12px; font-size:12px;" onclick="printQR(\'' + qrUrl + '\')">Cetak QR</button>';
+    html += '    </div>';
+    html += '  </div>';
+    html += '</div>';
+  });
+  el.innerHTML = html;
 }
 
 function printQR(url) {
-  if(!url) return alert("QR belum tersedia");
+  if(!url || url === 'undefined') return alert("QR belum tersedia");
   const w = window.open('','_blank');
-  w.document.write(`<html><head><title>Print QR</title></head><body style="text-align:center; padding:40px;"><img src="${url}" style="width:300px;"><br><br><button onclick="window.print()" style="padding:10px 20px; font-size:16px;">Cetak Barcode</button></body></html>`);
+  let html = '<html><head><title>Print QR</title></head>';
+  html += '<body style="text-align:center; padding:40px;">';
+  html += '<img src="' + url + '" style="width:300px;"><br><br>';
+  html += '<button onclick="window.print()" style="padding:10px 20px; font-size:16px;">Cetak Barcode</button>';
+  html += '</body></html>';
+  w.document.write(html);
   w.document.close();
 }
 
@@ -485,16 +546,16 @@ function requestPinAndShowDetail() {
   const boxId = document.getElementById('detailBox').value;
   if(!boxId) return alert("Pilih Koli Box terlebih dahulu");
   
-  const boxData = APP_DATA.boxes.find(b => b.BoxID === boxId);
+  const boxData = APP_DATA.boxes.find(function(b) { return b.BoxID === boxId; });
   
-  // Jika role superadmin, bypass PIN
+  // Bypass PIN jika Superadmin / Admin
   if(currentUser.role === 'superadmin' || currentUser.role === 'admin') {
     renderDetail(boxData);
     return;
   }
   
-  const inputPin = prompt(`Masukkan 6-Digit PIN Akses untuk ${boxData.NamaBox}:`);
-  if(inputPin === null) return; // Cancelled
+  const inputPin = prompt("Masukkan 6-Digit PIN Akses untuk " + boxData.NamaBox + ":");
+  if(inputPin === null) return; 
   
   if(String(inputPin) === String(boxData.PIN)) {
     renderDetail(boxData);
@@ -507,26 +568,32 @@ function requestPinAndShowDetail() {
 function renderDetail(box) {
   document.getElementById('boxDetailContent').classList.remove('hidden');
   document.getElementById('detBoxName').innerText = box.NamaBox;
-  document.getElementById('detBoxPIN').innerText = `PIN: ${box.PIN || 'Bypass'}`;
+  document.getElementById('detBoxPIN').innerText = "PIN: " + (box.PIN || 'Bypass');
   
-  const items = APP_DATA.products.filter(p => p.BoxID === box.BoxID);
+  const items = APP_DATA.products.filter(function(p) { return p.BoxID === box.BoxID; });
   const wrap = document.getElementById('detTableWrap');
   
-  if(!items.length) {
-    wrap.innerHTML = `<div class="empty-state">Koli ini kosong.</div>`; return;
+  if(items.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">Koli ini kosong.</div>'; 
+    return;
   }
   
-  wrap.innerHTML = `<table>
-    <tr><th>Foto</th><th>Artikel</th><th>Barang</th><th>Stok</th></tr>
-    ${items.map(i => `
-      <tr>
-        <td>\${i.FotoURL ? `<a href="${i.FotoURL}" target="_blank"><img src="${i.FotoURL}" width="40" style="border-radius:6px;"></a>` : '-'}</td>
-        <td><b>\${i.Artikel}</b></td>
-        <td>\${i.NamaBarang}</td>
-        <td><b style="color:var(--primary);">\${i.Qty}</b></td>
-      </tr>
-    `).join('')}
-  </table>`;
+  let html = '<table><tr><th>Foto</th><th>Artikel</th><th>Barang</th><th>Stok</th></tr>';
+  items.forEach(function(i) {
+    let foto = '-';
+    if(i.FotoURL) {
+      foto = '<a href="' + i.FotoURL + '" target="_blank"><img src="' + i.FotoURL + '" width="40" style="border-radius:6px;"></a>';
+    }
+    html += '<tr>';
+    html += '  <td>' + foto + '</td>';
+    html += '  <td><b>' + i.Artikel + '</b></td>';
+    html += '  <td>' + i.NamaBarang + '</td>';
+    html += '  <td><b style="color:var(--primary);">' + i.Qty + '</b></td>';
+    html += '</tr>';
+  });
+  html += '</table>';
+  
+  wrap.innerHTML = html;
 }
 
 // ==========================================
@@ -534,29 +601,45 @@ function renderDetail(box) {
 // ==========================================
 function renderHistory() {
   const wrap = document.getElementById('historyTableWrap');
-  if(!APP_DATA.transactions || !APP_DATA.transactions.length) {
-    wrap.innerHTML = `<div class="empty-state">Belum ada riwayat transaksi.</div>`; return;
+  if(!APP_DATA.transactions || APP_DATA.transactions.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">Belum ada riwayat transaksi.</div>'; 
+    return;
   }
   
-  wrap.innerHTML = `<table>
-    <tr><th>Waktu</th><th>User</th><th>Tipe</th><th>Detail</th></tr>
-    ${APP_DATA.transactions.map(t => `
-      <tr>
-        <td style="font-size:12px; color:var(--subtext);">\${new Date(t.Waktu).toLocaleDateString('id-ID', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'})}</td>
-        <td>\${t.User}</td>
-        <td><span class="badge" style="background:\${t.Aktivitas.includes('OUTBOUND') ? '#FFE5E5' : '#E5F1FF'}; color:${t.Aktivitas.includes('OUTBOUND') ? 'var(--red)' : 'var(--primary)'}">${t.Aktivitas}</span></td>
-        <td>\${t.Detail}</td>
-      </tr>
-    `).join('')}
-  </table>`;
+  let html = '<table><tr><th>Waktu</th><th>User</th><th>Tipe</th><th>Detail</th></tr>';
+  APP_DATA.transactions.forEach(function(t) {
+    const timeStr = new Date(t.Waktu).toLocaleString('id-ID', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
+    const tipe = (t.Aktivitas || '').toUpperCase();
+    const isOutbound = tipe.indexOf('OUTBOUND') > -1;
+    const bg = isOutbound ? '#FFE5E5' : '#E5F1FF';
+    const color = isOutbound ? 'var(--red)' : 'var(--primary)';
+    
+    html += '<tr>';
+    html += '  <td style="font-size:12px; color:var(--subtext);">' + timeStr + '</td>';
+    html += '  <td>' + (t.User || '-') + '</td>';
+    html += '  <td><span class="badge" style="background:' + bg + '; color:' + color + '">' + tipe + '</span></td>';
+    html += '  <td>' + (t.Detail || '-') + '</td>';
+    html += '</tr>';
+  });
+  html += '</table>';
+  
+  wrap.innerHTML = html;
 }
 
 // ==========================================
 // NAVIGATION TAB HANDLER
 // ==========================================
 function nav(view) {
-  document.querySelectorAll('.panel').forEach(p => p.classList.add('hidden'));
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  const panels = document.querySelectorAll('.panel');
+  for(let i=0; i<panels.length; i++) {
+    panels[i].classList.add('hidden');
+  }
+  
+  const tabs = document.querySelectorAll('.tab');
+  for(let i=0; i<tabs.length; i++) {
+    tabs[i].classList.remove('active');
+  }
+  
   document.getElementById('view-' + view).classList.remove('hidden');
   event.currentTarget.classList.add('active');
   window.scrollTo(0,0);
